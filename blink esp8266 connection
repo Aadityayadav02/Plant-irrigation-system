@@ -1,0 +1,148 @@
+#define BLYNK_TEMPLATE_ID "TMPL3i2vE66im"
+#define BLYNK_TEMPLATE_NAME "Plant Irrigation System"
+#define BLYNK_AUTH_TOKEN "akw5gnzCo51Tdt1LZTZ4-fI9iEYo-gxz"
+
+#define BLYNK_PRINT Serial
+
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+
+char ssid[] = "aaaaa";
+char pass[] = "123456789";
+
+#define DHTPIN D4
+#define DHTTYPE DHT11
+
+#define SOIL_PIN A0
+#define RELAY_PIN D1
+
+DHT dht(DHTPIN, DHTTYPE);
+
+BlynkTimer timer;
+
+void sendData()
+{
+  if (!Blynk.connected()) {
+    Serial.println("Blynk Disconnected");
+    return;
+  }
+
+  int soilRaw = analogRead(SOIL_PIN);
+
+  int moisture = map(soilRaw, 1024, 0, 0, 100);
+
+  moisture = constrain(moisture, 0, 100);
+
+  float temp = dht.readTemperature();
+
+  float hum = dht.readHumidity();
+
+  if (moisture < 40) {
+
+    digitalWrite(RELAY_PIN, LOW);
+
+    Blynk.virtualWrite(V3, 1);
+
+    Serial.println("Pump ON");
+
+  } else {
+
+    digitalWrite(RELAY_PIN, HIGH);
+
+    Blynk.virtualWrite(V3, 0);
+
+    Serial.println("Pump OFF");
+  }
+
+  Blynk.virtualWrite(V0, moisture);
+
+  Blynk.virtualWrite(V1, temp);
+
+  Blynk.virtualWrite(V2, hum);
+
+  Serial.println("===== DATA =====");
+
+  Serial.print("Moisture: ");
+  Serial.println(moisture);
+
+  Serial.print("Temperature: ");
+  Serial.println(temp);
+
+  Serial.print("Humidity: ");
+  Serial.println(hum);
+
+  Serial.println("================");
+}
+
+void connectBlynk()
+{
+  if (WiFi.status() != WL_CONNECTED) {
+
+    Serial.println("WiFi Lost");
+
+    WiFi.begin(ssid, pass);
+
+    return;
+  }
+
+  if (!Blynk.connected()) {
+
+    Serial.println("Connecting Blynk...");
+
+    Blynk.connect(3000);
+  }
+}
+
+void setup()
+{
+  Serial.begin(115200);
+
+  delay(1000);
+
+  pinMode(RELAY_PIN, OUTPUT);
+
+  digitalWrite(RELAY_PIN, HIGH);
+
+  dht.begin();
+
+  WiFi.mode(WIFI_STA);
+
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
+
+  Serial.println("Connecting WiFi");
+
+  WiFi.begin(ssid, pass);
+
+  while (WiFi.status() != WL_CONNECTED) {
+
+    delay(500);
+
+    Serial.print(".");
+  }
+
+  Serial.println();
+
+  Serial.println("WiFi Connected");
+
+  Serial.println(WiFi.localIP());
+
+  Blynk.config(BLYNK_AUTH_TOKEN);
+
+  Blynk.connect(5000);
+
+  timer.setInterval(10000L, sendData);
+
+  timer.setInterval(30000L, connectBlynk);
+}
+
+void loop()
+{
+  if (Blynk.connected()) {
+    Blynk.run();
+  }
+
+  timer.run();
+}
