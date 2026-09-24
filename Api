@@ -1,0 +1,83 @@
+from fastapi import FastAPI
+import sqlite3
+
+app = FastAPI()
+
+DB_NAME = "irrigation_data.db"
+
+def get_connection():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@app.get("/")
+def home():
+    return {
+        "project": "Smart Irrigation",
+        "status": "running"
+    }
+
+@app.get("/latest")
+def latest():
+
+    conn = get_connection()
+
+    row = conn.execute("""
+        SELECT *
+        FROM sensor_data
+        ORDER BY time DESC
+        LIMIT 1
+    """).fetchone()
+
+    conn.close()
+
+    if row:
+        return dict(row)
+
+    return {"message": "No data found"}
+
+
+@app.get("/readings")
+def readings(limit: int = 10):
+
+    conn = get_connection()
+
+    rows = conn.execute("""
+        SELECT *
+        FROM sensor_data
+        ORDER BY time DESC
+        LIMIT ?
+    """, (limit,)).fetchall()
+
+    conn.close()
+
+    return [dict(r) for r in rows]
+
+
+@app.get("/summary")
+def summary():
+
+    conn = get_connection()
+
+    stats = conn.execute("""
+        SELECT
+            COUNT(*) as total_records,
+
+            AVG(moisture) as avg_moisture,
+            MIN(moisture) as min_moisture,
+            MAX(moisture) as max_moisture,
+
+            AVG(temperature) as avg_temperature,
+            MIN(temperature) as min_temperature,
+            MAX(temperature) as max_temperature,
+
+            AVG(humidity) as avg_humidity,
+            MIN(humidity) as min_humidity,
+            MAX(humidity) as max_humidity
+
+        FROM sensor_data
+    """).fetchone()
+
+    conn.close()
+
+    return dict(stats)
