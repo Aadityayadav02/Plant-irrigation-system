@@ -1,0 +1,74 @@
+import requests
+import sqlite3
+from datetime import datetime
+import time
+
+AUTH_TOKEN = "akw5gnzCo51Tdt1LZTZ4-fI9iEYo-gxz"
+
+conn = sqlite3.connect("irrigation_data.db")
+
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS sensor_data (
+    time TEXT,
+    moisture REAL,
+    temperature REAL,
+    humidity REAL,
+    pump INTEGER
+)
+""")
+
+conn.commit()
+
+print("Database Connected")
+
+while True:
+
+    try:
+
+        moisture_url = f"https://blynk.cloud/external/api/get?token={AUTH_TOKEN}&V0"
+
+        temp_url = f"https://blynk.cloud/external/api/get?token={AUTH_TOKEN}&V1"
+
+        hum_url = f"https://blynk.cloud/external/api/get?token={AUTH_TOKEN}&V2"
+
+        pump_url = f"https://blynk.cloud/external/api/get?token={AUTH_TOKEN}&V3"
+
+        moisture = requests.get(moisture_url).text
+
+        temperature = requests.get(temp_url).text
+
+        humidity = requests.get(hum_url).text
+
+        pump = requests.get(pump_url).text
+
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        print("\n===== SENSOR DATA =====")
+
+        print("Time:", current_time)
+
+        print("Moisture:", moisture)
+
+        print("Temperature:", temperature)
+
+        print("Humidity:", humidity)
+
+        print("Pump:", pump)
+
+        cursor.execute("""
+        INSERT INTO sensor_data
+        (time, moisture, temperature, humidity, pump)
+        VALUES (?, ?, ?, ?, ?)
+        """, (current_time, moisture, temperature, humidity, pump))
+
+        conn.commit()
+
+        print("Data Stored Successfully")
+
+    except Exception as e:
+
+        print("Error:", e)
+
+    time.sleep(10)
